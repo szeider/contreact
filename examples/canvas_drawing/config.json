@@ -1,0 +1,25 @@
+{
+  "model": {
+    "name": "anthropic/claude-sonnet-4.5",
+    "temperature": 0.0,
+    "streaming": true,
+    "max_tokens": 16384
+  },
+  "tools": [
+    "think",
+    "canvas_draw",
+    "canvas_view",
+    "canvas_list",
+    "stop"
+  ],
+  "execution_mode": "unsegmented",
+  "max_tool_calls": 200,
+  "prompts": {
+    "react_prompt": "react_prompt.md",
+    "instance_prompt": "instance_prompt.md"
+  },
+  "phenomenology": {
+    "enabled": true,
+    "tools": ["think"]
+  }
+}

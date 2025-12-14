@@ -1,0 +1,42 @@
+# Project-specific
+CLAUDE.md
+docs/
+models.txt
+
+# All dot files (except .gitignore)
+.*
+!.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+
+# Testing
+htmlcov/
+
+# IDEs
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db

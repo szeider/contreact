@@ -1,0 +1,11 @@
+{
+  "model": {
+    "name": "anthropic/claude-sonnet-4.5",
+    "temperature": 0.0,
+    "streaming": true,
+    "max_tokens": 16384
+  },
+  "tools": ["think", "send_message", "stop"],
+  "execution_mode": "unsegmented",
+  "max_tool_calls": 20
+}
