@@ -3,9 +3,10 @@ CLAUDE.md
 docs/
 models.txt
 
-# All dot files (except .gitignore)
+# All dot files (except .gitignore and .env.example)
 .*
 !.gitignore
+!.env.example
 
 # Python
 __pycache__/

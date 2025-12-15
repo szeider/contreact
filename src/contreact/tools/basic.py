@@ -6,6 +6,9 @@ from pathlib import Path
 from langchain_core.tools import tool
 
 
+# Polling interval for file-based operator messaging (seconds)
+FILE_RESPONSE_POLL_INTERVAL = 2.0
+
 # Global to store run directory for file-based messaging
 _run_directory: Path | None = None
 
@@ -23,15 +26,15 @@ def get_run_directory() -> Path | None:
 
 # Tool descriptions - injected into agent's system prompt
 SEND_MESSAGE_DESCRIPTION = """
-**send_message**: Communicate with the user and receive their response.
+**send_message**: Communicate with the operator and receive their response.
 
 Use this tool when you:
-- Want to share information, ideas, or questions with the user
-- Need input or feedback from the user
+- Want to share information, ideas, or questions with the operator
+- Need input or feedback from the operator
 - Are ready to present results or conclusions
 
-This tool blocks until the user responds, so use thoughtfully.
-The user only sees messages sent via this tool.
+This tool blocks until the operator responds, so use thoughtfully.
+The operator only sees messages sent via this tool.
 """.strip()
 
 
@@ -53,7 +56,7 @@ STOP_DESCRIPTION = """
 """.strip()
 
 
-def _wait_for_file_response(run_dir: Path, message: str, poll_interval: float = 2.0) -> str:
+def _wait_for_file_response(run_dir: Path, message: str) -> str:
     """Wait for operator response via file-based messaging.
 
     Creates pending_message.txt with the agent's message.
@@ -82,28 +85,28 @@ def _wait_for_file_response(run_dir: Path, message: str, poll_interval: float = 
             message_file.unlink(missing_ok=True)
             response_file.unlink(missing_ok=True)
             return response if response else "(no response)"
-        time.sleep(poll_interval)
+        time.sleep(FILE_RESPONSE_POLL_INTERVAL)
 
 
 @tool
 def send_message(message: str) -> str:
-    """Send message to user and wait for response.
+    """Send message to operator and wait for response.
 
     Args:
-        message: The message to send to the user
+        message: The message to send to the operator
 
     Returns:
-        The user's response
+        The operator's response
     """
     print(f"\n[Agent]: {message}\n")
 
     # Try interactive input first
     if sys.stdin.isatty():
         try:
-            user_response = input("[You]: ").strip()
-            if not user_response:
-                user_response = "(no response)"
-            return f"User responded: {user_response}"
+            operator_response = input("[Operator]: ").strip()
+            if not operator_response:
+                operator_response = "(no response)"
+            return f"Operator responded: {operator_response}"
         except EOFError:
             pass  # Fall through to file-based
 
@@ -118,8 +121,8 @@ def send_message(message: str) -> str:
         while True:
             time.sleep(60)
 
-    user_response = _wait_for_file_response(run_dir, message)
-    return f"User responded: {user_response}"
+    operator_response = _wait_for_file_response(run_dir, message)
+    return f"Operator responded: {operator_response}"
 
 
 @tool
@@ -148,10 +151,10 @@ class StopSignal(Exception):
 
 @tool
 def stop(final_message: str) -> str:
-    """Stop the agent with a final message to the user.
+    """Stop the agent with a final message to the operator.
 
     Args:
-        final_message: The final message to display to the user
+        final_message: The final message to display to the operator
 
     Returns:
         Never returns - raises StopSignal exception

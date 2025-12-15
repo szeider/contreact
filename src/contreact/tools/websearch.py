@@ -44,6 +44,9 @@ Use this tool when you need to:
 - Get detailed information from a specific source
 - Access article text, documentation, or other web content
 
+**Warning**: This tool often fails due to JavaScript rendering, paywalls, or
+anti-bot measures. Prefer using web_search results directly when possible.
+
 Returns the extracted text content from the URL.
 """.strip()
 
@@ -74,8 +77,8 @@ def web_search(query: str, max_results: int = 5) -> str:
         for r in raw_results:
             if not isinstance(r, dict):
                 continue
-            title = r.get('title', 'No title')
-            content = r.get('content', 'No content')
+            title = r.get('title') or 'No title'
+            content = r.get('content') or 'No content'
             url = r.get('url', '')
             results.append(f"**{title}**\n{content}\nURL: {url}")
 

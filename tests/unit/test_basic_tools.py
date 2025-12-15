@@ -24,12 +24,12 @@ PHENOM = {"phenom_state": "testing", "phenom_aversive": 4}
 class TestSendMessage:
     """Tests for send_message tool."""
 
-    def test_returns_user_response(self):
-        """Should return formatted user response."""
+    def test_returns_operator_response(self):
+        """Should return formatted operator response."""
         with patch('sys.stdin.isatty', return_value=True):
             with patch('builtins.input', return_value='Hello back'):
                 result = send_message.invoke({"message": "Hello"})
-                assert "User responded: Hello back" in result
+                assert "Operator responded: Hello back" in result
 
     def test_handles_empty_response(self):
         """Should handle empty user response."""

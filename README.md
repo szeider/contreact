@@ -111,19 +111,23 @@ See `examples/quickstart/` for a minimal setup, or `examples/carbon_capture/` fo
 
 | Tool | Description |
 |------|-------------|
-| `memory_write` | Store information with a key |
+| `memory_write` | Store or update information with a key (upsert) |
 | `memory_read` | Retrieve stored information |
 | `memory_list` | List all memory keys |
 | `memory_search` | Search memories by content |
-| `memory_update` | Update existing memory |
+| `memory_update` | Alias for memory_write (both create or update) |
 | `memory_delete` | Remove a memory |
+
+Both `memory_write` and `memory_update` behave identically---they create a new memory or update an existing one.
 
 ### Web search
 
 | Tool | Description |
 |------|-------------|
 | `web_search` | Search the web via Tavily |
-| `extract_content` | Extract text from a URL (unreliable, often fails) |
+| `extract_content` | Extract text from a URL (often fails due to site restrictions) |
+
+**Note**: `extract_content` may fail on many sites due to JavaScript rendering, paywalls, or anti-bot measures. The agent should prefer using `web_search` results directly when possible.
 
 ### Canvas
 
@@ -148,6 +152,10 @@ uv run contreact my_run -q "What is the cost per ton for DAC?"
 uv run query my_run "Summarize what you've learned"
 ```
 
+**How `-q` works**: The query is wrapped with instructions telling the agent to use its memory and tools, then deliver the answer via `send_message`. After answering, the agent continues running (use Ctrl+C to stop). The query becomes part of the session history.
+
+**How `query` works**: Sends your question directly to the LLM with the full conversation history but no tool access. Read-only---doesn't modify state. Good for summaries and analysis.
+
 ## Project structure
 
 ```
@@ -158,6 +166,12 @@ src/contreact/
 ├── memory/          # Memory storage + similarity
 └── tools/           # Tool implementations
 ```
+
+## Caveats
+
+- **Thread ID is the folder name**: The checkpoint database uses the run folder name as thread ID. If you rename or move the folder, resumption will start a new session instead of continuing the old one.
+- **Minimal terminal output**: The agent prints abbreviated status messages. For detailed history, see `history.jsonl` in the run folder.
+- **Token usage**: Usage metadata (input/output tokens) is logged to `history.jsonl` but not displayed in the terminal. Parse the log file to calculate costs.
 
 ## License
 

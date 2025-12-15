@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sqlite3
 from pathlib import Path
 
@@ -293,6 +294,12 @@ def main():
             print(f"Phenomenology enabled for: {', '.join(sorted(phenom_tools))}")
     else:
         phenom_tools = set()
+
+    # Check for Tavily API key if web search tools are configured
+    web_search_tools = {"web_search", "extract_content"}
+    if any(name in web_search_tools for name in tool_names):
+        if not os.getenv("TAVILY_API_KEY"):
+            print("Warning: TAVILY_API_KEY not set. Web search tools will fail at runtime.")
 
     # Get tools (with phenomenology wrapping if configured)
     tools = get_tools_by_name(
