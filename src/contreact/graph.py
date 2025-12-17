@@ -124,8 +124,13 @@ def create_graph(tools: list, checkpointer=None) -> StateGraph:
         for attempt in range(MAX_RETRIES):
             try:
                 response = llm.invoke(messages, config)
+                # Validate response - LLM should always return a message
+                if response is None:
+                    raise ValueError("LLM returned None response")
+                if not getattr(response, 'tool_calls', None) and not getattr(response, 'content', None):
+                    raise ValueError("LLM returned empty response (no content or tool calls)")
                 return {"messages": [response]}
-            except (APIError, RateLimitError, APIConnectionError, APITimeoutError, httpx.RemoteProtocolError) as e:
+            except (APIError, RateLimitError, APIConnectionError, APITimeoutError, httpx.RemoteProtocolError, ValueError) as e:
                 last_error = e
                 if attempt < MAX_RETRIES - 1:
                     delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
@@ -242,8 +247,13 @@ def create_segmented_graph(tools: list, checkpointer=None) -> StateGraph:
         for attempt in range(MAX_RETRIES):
             try:
                 response = llm.invoke(messages, config)
+                # Validate response - LLM should always return a message
+                if response is None:
+                    raise ValueError("LLM returned None response")
+                if not getattr(response, 'tool_calls', None) and not getattr(response, 'content', None):
+                    raise ValueError("LLM returned empty response (no content or tool calls)")
                 return {"messages": [response]}
-            except (APIError, RateLimitError, APIConnectionError, APITimeoutError, httpx.RemoteProtocolError) as e:
+            except (APIError, RateLimitError, APIConnectionError, APITimeoutError, httpx.RemoteProtocolError, ValueError) as e:
                 last_error = e
                 if attempt < MAX_RETRIES - 1:
                     delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
