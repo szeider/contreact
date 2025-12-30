@@ -320,7 +320,7 @@ def main():
     max_tool_calls = config_data.get("max_tool_calls", 0)
     thread_id = run_path.name  # Use run folder name as thread_id
 
-    # Get execution mode (unsegmented = default, segmented = Frank-style cycles)
+    # Get execution mode (unsegmented = default, segmented = discrete cycles)
     execution_mode = config_data.get("execution_mode", "unsegmented")
     is_segmented = execution_mode == "segmented"
 

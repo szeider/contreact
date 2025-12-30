@@ -53,7 +53,7 @@ class TestCreateGraph:
 
 
 class TestCreateSegmentedGraph:
-    """Tests for create_segmented_graph function (Frank-style cycles)."""
+    """Tests for create_segmented_graph function."""
 
     def test_creates_graph_with_tools(self):
         """Should create segmented graph with provided tools."""
