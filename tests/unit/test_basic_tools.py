@@ -14,6 +14,7 @@ from contreact.tools.basic import (
     StopSignal,
     set_run_directory,
     get_run_directory,
+    set_pre_message_callback,
 )
 
 
@@ -38,13 +39,13 @@ class TestSendMessage:
                 result = send_message.invoke({"message": "Hello"})
                 assert "(no response)" in result
 
-    def test_prints_agent_message(self, capsys):
-        """Should print agent message."""
+    def test_prints_message_to_operator(self, capsys):
+        """Should print message with operator label."""
         with patch('sys.stdin.isatty', return_value=True):
             with patch('builtins.input', return_value='response'):
                 send_message.invoke({"message": "Test message"})
                 captured = capsys.readouterr()
-                assert "[Agent]: Test message" in captured.out
+                assert "[Message to operator]: Test message" in captured.out
 
 
 class TestThink:
@@ -61,14 +62,12 @@ class TestThink:
         captured = capsys.readouterr()
         assert "[Agent thinking:" in captured.out
 
-    def test_truncates_long_thought(self, capsys):
-        """Should truncate thoughts longer than 80 chars in terminal."""
+    def test_shows_full_long_thought(self, capsys):
+        """Should show full thought text without truncation."""
         long_thought = "x" * 100
         think.invoke({"thought": long_thought, **PHENOM})
         captured = capsys.readouterr()
-        assert "..." in captured.out
-        # Full thought should not appear in truncated output
-        assert long_thought not in captured.out
+        assert long_thought in captured.out
 
     def test_no_phenomenology_by_default(self):
         """Think tool should not have phenomenology params by default.
@@ -197,4 +196,71 @@ class TestSendMessageFileBased:
 
             responder.join()
             set_run_directory(None)
+
+
+class TestPreMessageCallback:
+    """Tests for set_pre_message_callback hook."""
+
+    def teardown_method(self):
+        """Clear callback after each test."""
+        set_pre_message_callback(None)
+
+    def test_callback_invoked_with_message(self):
+        """Callback should receive the message text before operator prompt."""
+        captured_messages = []
+        set_pre_message_callback(lambda msg: captured_messages.append(msg))
+
+        with patch('sys.stdin.isatty', return_value=True):
+            with patch('builtins.input', return_value='ok'):
+                send_message.invoke({"message": "Hello operator"})
+
+        assert captured_messages == ["Hello operator"]
+
+    def test_no_callback_by_default(self):
+        """Should work without a callback set."""
+        set_pre_message_callback(None)
+        with patch('sys.stdin.isatty', return_value=True):
+            with patch('builtins.input', return_value='ok'):
+                result = send_message.invoke({"message": "Hello"})
+                assert "Operator responded: ok" in result
+
+    def test_callback_called_before_input(self):
+        """Callback should fire before blocking on operator input."""
+        call_order = []
+
+        def record_callback(msg):
+            call_order.append("callback")
+
+        def record_input(prompt=""):
+            call_order.append("input")
+            return "response"
+
+        set_pre_message_callback(record_callback)
+        with patch('sys.stdin.isatty', return_value=True):
+            with patch('builtins.input', side_effect=record_input):
+                send_message.invoke({"message": "test"})
+
+        assert call_order == ["callback", "input"]
+
+    def test_callback_exception_propagates(self):
+        """If callback raises, it should propagate (not be silenced)."""
+        def bad_callback(msg):
+            raise ValueError("TTS failed")
+
+        set_pre_message_callback(bad_callback)
+        with patch('sys.stdin.isatty', return_value=True):
+            with pytest.raises(ValueError, match="TTS failed"):
+                send_message.invoke({"message": "test"})
+
+    def test_set_callback_to_none_clears(self):
+        """Setting callback to None should disable it."""
+        captured = []
+        set_pre_message_callback(lambda msg: captured.append(msg))
+        set_pre_message_callback(None)
+
+        with patch('sys.stdin.isatty', return_value=True):
+            with patch('builtins.input', return_value='ok'):
+                send_message.invoke({"message": "test"})
+
+        assert captured == []
 

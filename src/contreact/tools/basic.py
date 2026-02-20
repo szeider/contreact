@@ -12,6 +12,15 @@ FILE_RESPONSE_POLL_INTERVAL = 2.0
 # Global to store run directory for file-based messaging
 _run_directory: Path | None = None
 
+# Optional callback invoked before operator prompt (e.g., TTS)
+_pre_message_callback = None
+
+
+def set_pre_message_callback(callback) -> None:
+    """Set a callback invoked with message text before operator prompt."""
+    global _pre_message_callback
+    _pre_message_callback = callback
+
 
 def set_run_directory(path: Path) -> None:
     """Set the run directory for file-based operator messaging."""
@@ -98,7 +107,11 @@ def send_message(message: str) -> str:
     Returns:
         The operator's response
     """
-    print(f"\n[Agent]: {message}\n")
+    print(f"\n[Message to operator]: {message}\n")
+
+    # Invoke pre-message callback (e.g., TTS) before blocking on operator
+    if _pre_message_callback:
+        _pre_message_callback(message)
 
     # Try interactive input first
     if sys.stdin.isatty():
@@ -135,9 +148,8 @@ def think(thought: str) -> str:
     Returns:
         Confirmation that thought was recorded
     """
-    # Show abbreviated thought to terminal
-    preview = thought[:80] + "..." if len(thought) > 80 else thought
-    print(f"[Agent thinking: {preview}]")
+    # Show full thought to terminal
+    print(f"[Agent thinking: {thought}]")
 
     return "Thought recorded. Continue with your next action."
 
