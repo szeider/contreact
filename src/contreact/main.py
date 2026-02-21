@@ -224,11 +224,16 @@ def main():
         "-q", "--query",
         help="Inject a question when resuming (agent can use tools to answer)"
     )
+    parser.add_argument(
+        "--step", action="store_true",
+        help="Step mode: pause after each tool call and wait for Enter"
+    )
     args = parser.parse_args()
 
     run_name = args.run_name
     run_path = Path(run_name).resolve()
     injected_query = args.query
+    step_mode = args.step
 
     # Set run directory for file-based operator messaging
     set_run_directory(run_path)
@@ -445,17 +450,30 @@ def main():
 
         else:
             # Unsegmented mode: continuous loop (original behavior)
+            pending_tool_name = None
             for event in graph.stream(inputs, run_config, stream_mode="updates"):
+                is_tool_event = False
                 for node_name, node_output in event.items():
                     if "messages" in node_output:
                         for msg in node_output["messages"]:
                             log_message(run_name, msg)
                             if isinstance(msg, ToolMessage):
                                 total_tool_calls += 1
+                                is_tool_event = True
+                            elif hasattr(msg, 'tool_calls') and msg.tool_calls:
+                                pending_tool_name = msg.tool_calls[-1]["name"]
 
                 if max_tool_calls > 0 and total_tool_calls >= max_tool_calls:
                     print(f"\nMax tool calls reached ({total_tool_calls}/{max_tool_calls})")
                     break
+
+                if step_mode and is_tool_event:
+                    if pending_tool_name != "send_message":
+                        print(f"\n{'─' * 40} [{total_tool_calls}/{max_tool_calls}] {'─' * 40}")
+                        input("Press Enter to continue...")
+                    else:
+                        print(f"{'─' * 40} [{total_tool_calls}/{max_tool_calls}] {'─' * 40}")
+                    pending_tool_name = None
 
     except StopIteration:
         pass  # Clean exit from segmented mode max_tool_calls

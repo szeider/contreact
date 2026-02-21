@@ -15,6 +15,7 @@ from .basic import (
     stop,
     StopSignal,
     set_run_directory,
+    set_pre_message_callback,
     SEND_MESSAGE_DESCRIPTION,
     THINK_DESCRIPTION,
     STOP_DESCRIPTION
@@ -66,6 +67,7 @@ __all__ = [
     "stop",
     "StopSignal",
     "set_run_directory",
+    "set_pre_message_callback",
     "SEND_MESSAGE_DESCRIPTION",
     "THINK_DESCRIPTION",
     "STOP_DESCRIPTION",
