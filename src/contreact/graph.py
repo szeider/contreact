@@ -14,6 +14,20 @@ from openai import APIError, RateLimitError, APIConnectionError, APITimeoutError
 from .tools import StopSignal
 
 
+# Optional callback appended to every tool result (e.g., visitor count)
+_result_annotation_fn = None
+
+
+def set_result_annotation(fn):
+    """Set a function that returns a string appended to every tool result.
+
+    Args:
+        fn: Callable returning str (e.g., "\\n\\n[Exhibition: 3 visitors]"), or None to disable
+    """
+    global _result_annotation_fn
+    _result_annotation_fn = fn
+
+
 # Retry configuration
 MAX_RETRIES = 3
 BASE_DELAY = 2.0  # seconds
@@ -171,6 +185,15 @@ def create_graph(tools: list, checkpointer=None) -> StateGraph:
                     result = f"TOOL ERROR: {type(e).__name__}: {str(e)}\n\nPlease check your parameters and try again."
                     print(f"[Tool error: {tool_name} - {type(e).__name__}: {str(e)[:80]}]")
 
+            # Append environment annotation if configured
+            if _result_annotation_fn:
+                annotation = _result_annotation_fn()
+                if annotation:
+                    if isinstance(result, str):
+                        result = f"{result}\n\n{annotation}"
+                    elif isinstance(result, dict) and "message" in result:
+                        result["message"] = f"{result['message']}\n\n{annotation}"
+
             outputs.append(
                 ToolMessage(
                     content=result,
@@ -286,6 +309,15 @@ def create_segmented_graph(tools: list, checkpointer=None) -> StateGraph:
                 except Exception as e:
                     result = f"TOOL ERROR: {type(e).__name__}: {str(e)}\n\nPlease check your parameters and try again."
                     print(f"[Tool error: {tool_name} - {type(e).__name__}: {str(e)[:80]}]")
+
+            # Append environment annotation if configured
+            if _result_annotation_fn:
+                annotation = _result_annotation_fn()
+                if annotation:
+                    if isinstance(result, str):
+                        result = f"{result}\n\n{annotation}"
+                    elif isinstance(result, dict) and "message" in result:
+                        result["message"] = f"{result['message']}\n\n{annotation}"
 
             outputs.append(
                 ToolMessage(

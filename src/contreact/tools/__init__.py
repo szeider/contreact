@@ -53,6 +53,10 @@ from .canvas import (
     CANVAS_CLEAR_DESCRIPTION,
 )
 
+from .exhibition import (
+    visitor_annotation,
+)
+
 from .websearch import (
     web_search,
     extract_content,
@@ -95,6 +99,8 @@ __all__ = [
     "CANVAS_LIST_DESCRIPTION",
     "CANVAS_DELETE_DESCRIPTION",
     "CANVAS_CLEAR_DESCRIPTION",
+    # Exhibition tools
+    "visitor_annotation",
     # WebSearch tools
     "web_search",
     "extract_content",
