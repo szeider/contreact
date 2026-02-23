@@ -46,6 +46,7 @@ from .memory import (
 from .canvas import (
     create_canvas_tools,
     CANVAS_DRAW_DESCRIPTION,
+    CANVAS_CREATE_DESCRIPTION,
     CANVAS_READ_DESCRIPTION,
     CANVAS_VIEW_DESCRIPTION,
     CANVAS_LIST_DESCRIPTION,
@@ -94,6 +95,7 @@ __all__ = [
     # Canvas tools
     "create_canvas_tools",
     "CANVAS_DRAW_DESCRIPTION",
+    "CANVAS_CREATE_DESCRIPTION",
     "CANVAS_READ_DESCRIPTION",
     "CANVAS_VIEW_DESCRIPTION",
     "CANVAS_LIST_DESCRIPTION",

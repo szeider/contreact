@@ -249,3 +249,83 @@ def compact_history(
     print(f"[Compaction complete: {len(messages)} -> ~{keep_recent + 2} messages, summary: {len(summary_text)} chars]")
 
     return compacted
+
+
+def should_truncate(messages: list[BaseMessage], config: dict) -> bool:
+    """Check if truncation is needed based on message count.
+
+    Truncation is a lightweight alternative to compaction: it simply drops
+    old messages (no summary, no LLM call). Suitable for exhibition mode
+    where the agent can re-derive state from canvas/memory.
+
+    Args:
+        messages: Current message history
+        config: Run configuration with truncation settings
+
+    Returns:
+        True if truncation should be triggered
+    """
+    truncation_cfg = config.get("truncation", {})
+    if not truncation_cfg.get("enabled", False):
+        return False
+
+    keep_recent = truncation_cfg.get("keep_recent", 40)
+    # Trigger with a buffer to avoid truncating on every single tool call
+    trigger_margin = max(4, keep_recent // 5)  # at least 4, or 20% of keep_recent
+
+    # Count non-system messages
+    msg_count = sum(
+        1 for m in messages
+        if not isinstance(m, SystemMessage)
+    )
+
+    return msg_count >= keep_recent + trigger_margin
+
+
+def truncate_history(messages: list[BaseMessage], config: dict) -> list[BaseMessage]:
+    """Truncate history by dropping old messages (no summary, no LLM call).
+
+    Returns RemoveMessage directives for old non-system messages, keeping
+    the last keep_recent. Avoids splitting AIMessage from its ToolMessages.
+
+    Args:
+        messages: Current message history
+        config: Run configuration with truncation settings
+
+    Returns:
+        List of RemoveMessage directives to apply
+    """
+    truncation_cfg = config.get("truncation", {})
+    keep_recent = truncation_cfg.get("keep_recent", 40)
+
+    # Get non-system messages
+    content_messages = [m for m in messages if not isinstance(m, SystemMessage)]
+
+    if len(content_messages) <= keep_recent:
+        return []
+
+    # Split point: keep the last keep_recent messages
+    split_idx = len(content_messages) - keep_recent
+
+    # Avoid orphaned ToolMessages: if split lands on a ToolMessage,
+    # move split back to include the preceding AIMessage (tool call)
+    while split_idx > 0 and isinstance(content_messages[split_idx], ToolMessage):
+        split_idx -= 1
+
+    messages_to_remove = content_messages[:split_idx]
+
+    if not messages_to_remove:
+        return []
+
+    # Build RemoveMessage directives (skip messages without id)
+    removals: list[BaseMessage] = []
+    for msg in messages_to_remove:
+        if hasattr(msg, 'id') and msg.id:
+            removals.append(RemoveMessage(id=msg.id))
+
+    if not removals:
+        return []
+
+    print(f"[Truncating history: {len(content_messages)} -> ~{keep_recent} messages, removing {len(removals)}]")
+
+    return removals

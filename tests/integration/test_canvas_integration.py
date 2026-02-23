@@ -13,14 +13,15 @@ PHENOM = {"phenom_state": "testing", "phenom_aversive": 1}
 class TestCanvasToolsIntegration:
     """Tests for canvas tools working together."""
 
-    def test_create_canvas_tools_returns_six_tools(self, temp_db):
-        """Should return exactly 6 canvas tools."""
+    def test_create_canvas_tools_returns_seven_tools(self, temp_db):
+        """Should return exactly 7 canvas tools."""
         img_dir = temp_db.parent / "img"
         tools = create_canvas_tools(temp_db, img_dir)
 
-        assert len(tools) == 6
+        assert len(tools) == 7
         tool_names = [t.name for t in tools]
         assert "canvas_draw" in tool_names
+        assert "canvas_create" in tool_names
         assert "canvas_read" in tool_names
         assert "canvas_view" in tool_names
         assert "canvas_list" in tool_names

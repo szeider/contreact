@@ -55,6 +55,34 @@ Canvas is fixed at 160x90 pixels (16:9 aspect ratio).
 """.strip()
 
 
+CANVAS_CREATE_DESCRIPTION = """
+**canvas_create**: Create a new canvas with drawing operations. Canvas is automatically named.
+
+Each call creates a fresh canvas. You do not choose the name — it is assigned sequentially.
+Returns the rendered image immediately so you can see your work.
+
+IMPORTANT: The `operations` parameter is a JSON STRING, not a list.
+
+Example - create a canvas with a red circle:
+canvas_create(operations='[{"type": "circle", "x": 50, "y": 50, "r": 25, "color": "red", "fill": true}]')
+
+Shape types:
+- circle: {"type": "circle", "x": 50, "y": 50, "r": 25, "color": "yellow", "fill": true}
+- rect: {"type": "rect", "x": 20, "y": 20, "w": 30, "h": 40, "color": "green", "fill": true}
+- line: {"type": "line", "x1": 10, "y1": 10, "x2": 90, "y2": 90, "color": "blue", "width": 2}
+- pixel: {"type": "pixel", "x": 50, "y": 50, "color": "red"}
+- bezier: Smooth curve through control points.
+  {"type": "bezier", "start": [10, 50], "c1": [30, 10], "c2": [70, 90], "end": [90, 50], "color": "purple", "width": 2}
+- blob: Organic filled shape with smooth edges.
+  {"type": "blob", "points": [[50, 10], [90, 50], [50, 90], [10, 50]], "smooth": 0.5, "fill": true, "color": "orange"}
+
+Transparency: Add "alpha": 0.5 to any operation.
+Polar coords: Add "polar": true, "cx": 50, "cy": 50 then use "r" and "theta" (degrees).
+Colors: Named ("red"), hex ("#FF0000"), or RGB ([255, 0, 0]).
+Canvas is fixed at 160x90 pixels (16:9 aspect ratio).
+""".strip()
+
+
 CANVAS_READ_DESCRIPTION = """
 **canvas_read**: Get text description of a canvas (operations, colors, stats).
 
@@ -704,12 +732,14 @@ class CanvasRenderer:
 # Tool Factory
 # =============================================================================
 
-def create_canvas_tools(db_path: Path, img_dir: Path = None):
+def create_canvas_tools(db_path: Path, img_dir: Path = None, auto_name: bool = False):
     """Create canvas tools bound to a specific database.
 
     Args:
         db_path: Path to SQLite database (checkpoint.sqlite)
         img_dir: Path to image directory for SVG archival (default: db_path.parent/img)
+        auto_name: If True, canvas_draw auto-generates sequential names (canvas_000001, ...)
+                   and the name parameter is removed from the tool signature.
 
     Returns:
         List of tool functions
@@ -723,7 +753,7 @@ def create_canvas_tools(db_path: Path, img_dir: Path = None):
 
     def _get_next_image_number(canvas_name: str) -> int:
         """Get next available image number for a canvas."""
-        pattern = f"{canvas_name}_*.svg"
+        pattern = f"{canvas_name}_[0-9][0-9][0-9].svg"
         existing = list(store.img_dir.glob(pattern))
         if not existing:
             return 0
@@ -750,32 +780,19 @@ def create_canvas_tools(db_path: Path, img_dir: Path = None):
 
         return png_bytes, str(svg_path)
 
-    @tool
-    @with_phenomenology
-    def canvas_draw(name: str, operations: str) -> dict:
-        """Draw operations on a named canvas (creates if new). Returns rendered image.
+    def _next_auto_name() -> str:
+        """Generate next sequential canvas name (canvas_000001, canvas_000002, ...)."""
+        import re
+        canvases = store.list_entries()
+        max_num = 0
+        for name, _w, _h, _t in canvases:
+            m = re.match(r"canvas_(\d+)$", name)
+            if m:
+                max_num = max(max_num, int(m.group(1)))
+        return f"canvas_{max_num + 1:06d}"
 
-        Args:
-            name: Canvas name (e.g., "mandala", "sketch")
-            operations: JSON string containing array of drawing operations.
-
-        Operations format (as JSON string):
-        '[{"type": "circle", "x": 50, "y": 50, "r": 20, "color": "red", "fill": true}]'
-
-        Shape types:
-        - circle: x, y, r, color, fill
-        - rect: x, y, w, h, color, fill
-        - line: x1, y1, x2, y2, color, width
-        - pixel: x, y, color
-        - bezier: start, c1, c2, end, color, width (coordinates as [x,y] arrays)
-        - blob: points (array of [x,y]), color, fill, smooth
-
-        Example: Draw a red circle at center
-        canvas_draw(name="art", operations='[{"type": "circle", "x": 50, "y": 50, "r": 25, "color": "red", "fill": true}]')
-
-        Example: Draw multiple shapes
-        canvas_draw(name="art", operations='[{"type": "circle", "x": 50, "y": 50, "r": 20, "color": "red"}, {"type": "rect", "x": 10, "y": 10, "w": 30, "h": 20, "color": "blue"}]')
-        """
+    def _draw_impl(name: str, operations: str) -> dict:
+        """Core draw logic shared by canvas_draw and canvas_create."""
         # Fixed canvas size (16:9 aspect ratio)
         width, height = 160, 90
 
@@ -838,6 +855,59 @@ def create_canvas_tools(db_path: Path, img_dir: Path = None):
             "image": png_bytes,
             "svg_saved": svg_path,
         }
+
+    @tool
+    @with_phenomenology
+    def canvas_draw(name: str, operations: str) -> dict:
+        """Draw operations on a named canvas (creates if new). Returns rendered image.
+
+        Args:
+            name: Canvas name (e.g., "mandala", "sketch")
+            operations: JSON string containing array of drawing operations.
+
+        Operations format (as JSON string):
+        '[{"type": "circle", "x": 50, "y": 50, "r": 20, "color": "red", "fill": true}]'
+
+        Shape types:
+        - circle: x, y, r, color, fill
+        - rect: x, y, w, h, color, fill
+        - line: x1, y1, x2, y2, color, width
+        - pixel: x, y, color
+        - bezier: start, c1, c2, end, color, width (coordinates as [x,y] arrays)
+        - blob: points (array of [x,y]), color, fill, smooth
+
+        Example: Draw a red circle at center
+        canvas_draw(name="art", operations='[{"type": "circle", "x": 50, "y": 50, "r": 25, "color": "red", "fill": true}]')
+
+        Example: Draw multiple shapes
+        canvas_draw(name="art", operations='[{"type": "circle", "x": 50, "y": 50, "r": 20, "color": "red"}, {"type": "rect", "x": 10, "y": 10, "w": 30, "h": 20, "color": "blue"}]')
+        """
+        return _draw_impl(name, operations)
+
+    @tool
+    @with_phenomenology
+    def canvas_create(operations: str) -> dict:
+        """Create a new canvas with drawing operations. Each call creates a fresh canvas (automatically named). Returns rendered image.
+
+        Args:
+            operations: JSON string containing array of drawing operations.
+
+        Operations format (as JSON string):
+        '[{"type": "circle", "x": 50, "y": 50, "r": 20, "color": "red", "fill": true}]'
+
+        Shape types:
+        - circle: x, y, r, color, fill
+        - rect: x, y, w, h, color, fill
+        - line: x1, y1, x2, y2, color, width
+        - pixel: x, y, color
+        - bezier: start, c1, c2, end, color, width (coordinates as [x,y] arrays)
+        - blob: points (array of [x,y]), color, fill, smooth
+
+        Example: Draw a red circle at center
+        canvas_create(operations='[{"type": "circle", "x": 50, "y": 50, "r": 25, "color": "red", "fill": true}]')
+        """
+        name = _next_auto_name()
+        return _draw_impl(name, operations)
 
     @tool
     @with_phenomenology
@@ -908,10 +978,10 @@ Operations:
         if not canvases:
             return "No canvases created yet."
 
+        from datetime import timedelta, timezone
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC to match SQLite CURRENT_TIMESTAMP
         formatted = []
         for name, width, height, updated_at in canvases:
-            from datetime import timedelta
-            now = datetime.now()
             delta = now - updated_at
 
             if delta < timedelta(minutes=1):
@@ -967,4 +1037,5 @@ Operations:
             "image": png_bytes,
         }
 
-    return [canvas_draw, canvas_read, canvas_view, canvas_list, canvas_delete, canvas_clear]
+    all_tools = [canvas_draw, canvas_create, canvas_read, canvas_view, canvas_list, canvas_delete, canvas_clear]
+    return all_tools

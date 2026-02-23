@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-from .compaction import compact_history, load_compaction_prompt, should_compact
+from .compaction import compact_history, load_compaction_prompt, should_compact, should_truncate, truncate_history
 from .config import get_api_key
 from .graph import create_graph, create_segmented_graph
 from .logger import log_message
@@ -36,6 +36,7 @@ from .tools import (
     MEMORY_DELETE_DESCRIPTION,
     # Canvas v2 API
     CANVAS_DRAW_DESCRIPTION,
+    CANVAS_CREATE_DESCRIPTION,
     CANVAS_READ_DESCRIPTION,
     CANVAS_VIEW_DESCRIPTION,
     CANVAS_LIST_DESCRIPTION,
@@ -112,6 +113,7 @@ def get_tool_descriptions(tool_names: list[str], phenom_tools: set[str] = None) 
         "memory_delete": MEMORY_DELETE_DESCRIPTION,
         # Canvas tools
         "canvas_draw": CANVAS_DRAW_DESCRIPTION,
+        "canvas_create": CANVAS_CREATE_DESCRIPTION,
         "canvas_read": CANVAS_READ_DESCRIPTION,
         "canvas_view": CANVAS_VIEW_DESCRIPTION,
         "canvas_list": CANVAS_LIST_DESCRIPTION,
@@ -260,6 +262,20 @@ def main():
             print(f"Warning: compaction.trigger_messages ({trigger}) should be > keep_recent ({keep})")
         print(f"Compaction enabled (trigger: {trigger}, keep: {keep})")
 
+    # Load truncation config if enabled
+    truncation_cfg = config_data.get("truncation", {})
+    truncation_enabled = truncation_cfg.get("enabled", False)
+    if truncation_enabled:
+        if compaction_cfg.get("enabled", False):
+            raise ValueError(
+                "Cannot enable both compaction and truncation. "
+                "Choose one history management strategy."
+            )
+        truncation_keep = truncation_cfg.get("keep_recent", 40)
+        if truncation_keep < 4:
+            raise ValueError(f"truncation.keep_recent must be >= 4, got {truncation_keep}")
+        print(f"Truncation enabled (keep: {truncation_keep})")
+
     # Setup persistence
     db_path = Path(run_name) / "checkpoint.sqlite"
     tool_names = config_data.get("tools", ["send_message", "think"])
@@ -282,7 +298,7 @@ def main():
 
     # Initialize canvas system if needed
     canvas_tools = None
-    canvas_tool_names = {"canvas_draw", "canvas_read", "canvas_view", "canvas_list", "canvas_delete", "canvas_clear"}
+    canvas_tool_names = {"canvas_draw", "canvas_create", "canvas_read", "canvas_view", "canvas_list", "canvas_delete", "canvas_clear"}
     if any(name in canvas_tool_names for name in tool_names):
         print("Initializing canvas system...")
         img_dir = Path(run_name) / "img"
@@ -354,26 +370,34 @@ def main():
         "recursion_limit": 200
     }
 
-    # Helper to check and perform compaction
-    def check_compaction(current_messages: list) -> bool:
-        """Check and perform compaction if needed. Returns True if compacted."""
+    # Helper to check and perform history management (truncation or compaction)
+    def check_history_management(current_messages: list) -> bool:
+        """Check and perform truncation or compaction if needed. Returns True if applied."""
+        # Try truncation first (if enabled)
+        if truncation_enabled and should_truncate(current_messages, config_data):
+            try:
+                removals = truncate_history(current_messages, config_data)
+                if removals:
+                    graph.update_state(run_config, {"messages": removals}, as_node="__start__")
+                    return True
+            except Exception as e:
+                print(f"Warning: truncation failed: {e}")
+                return False
+
+        # Try compaction (if enabled)
         if not compaction_prompt:
             return False
         if not should_compact(current_messages, config_data):
             return False
 
         try:
-            # Perform compaction
             compacted = compact_history(
                 current_messages,
-                llm,  # Use base LLM (compaction.py handles tool unbinding)
+                llm,
                 compaction_prompt,
                 config_data,
                 run_name
             )
-
-            # Update state with compacted history
-            # Use as_node to properly handle the state update
             graph.update_state(run_config, {"messages": compacted}, as_node="__start__")
             return True
         except Exception as e:
@@ -392,8 +416,8 @@ def main():
         print("Resuming existing session...")
         # Check for compaction on resume
         messages = list(current_state.values.get("messages", []))
-        if messages and check_compaction(messages):
-            print("History compacted on resume")
+        if messages and check_history_management(messages):
+            print("History managed on resume")
 
         if injected_query:
             # Inject researcher question with explicit framing
@@ -425,8 +449,8 @@ def main():
                 if cycle_num > 1:
                     current_state = graph.get_state(run_config)
                     messages = list(current_state.values.get("messages", []))
-                    if messages and check_compaction(messages):
-                        print(f"[History compacted at cycle {cycle_num}]")
+                    if messages and check_history_management(messages):
+                        print(f"[History managed at cycle {cycle_num}]")
 
                 print(f"[Cycle {cycle_num}]")
 
@@ -466,6 +490,17 @@ def main():
                 if max_tool_calls > 0 and total_tool_calls >= max_tool_calls:
                     print(f"\nMax tool calls reached ({total_tool_calls}/{max_tool_calls})")
                     break
+
+                # Mid-stream truncation check (cheap, no LLM call)
+                # Call truncation directly (not check_history_management) to avoid compaction path
+                if truncation_enabled and is_tool_event:
+                    current_state = graph.get_state(run_config)
+                    cur_msgs = list(current_state.values.get("messages", []))
+                    if cur_msgs and should_truncate(cur_msgs, config_data):
+                        removals = truncate_history(cur_msgs, config_data)
+                        if removals:
+                            graph.update_state(run_config, {"messages": removals}, as_node="__start__")
+                            print(f"[History truncated at tool call {total_tool_calls}]")
 
                 if step_mode and is_tool_event:
                     if pending_tool_name != "send_message":
