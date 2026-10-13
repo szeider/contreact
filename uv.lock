@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -124,18 +124,6 @@ wheels = [
 ]
 
 [[package]]
-name = "click"
-version = "8.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/fa/656b739db8587d7b5dfa22e22ed02566950fbfbcdc20311993483657a5c0/click-8.3.1.tar.gz", hash = "sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a", size = 295065, upload-time = "2025-11-15T20:45:42.706Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/78/01c019cdb5d6498122777c1a43056ebb3ebfeef2076d9d026bfe15583b2b/click-8.3.1-py3-none-any.whl", hash = "sha256:981153a64e25f12d547d3426c367a4857371575ee7ad18df2a6183ab0545b2a6", size = 108274, upload-time = "2025-11-15T20:45:41.139Z" },
-]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -149,14 +137,16 @@ name = "contreact"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "click" },
+    { name = "httpx" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "numpy" },
+    { name = "openai" },
     { name = "pillow" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "rich" },
     { name = "scikit-learn" },
     { name = "tavily-python" },
@@ -181,17 +171,19 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "click", specifier = ">=8.3.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain-core", specifier = ">=1.2.5" },
     { name = "langchain-openai", specifier = ">=1.1.6" },
     { name = "langgraph", specifier = ">=1.0.5" },
     { name = "langgraph-checkpoint-sqlite", specifier = ">=3.0.1" },
     { name = "numpy", specifier = ">=2.4.0" },
     { name = "numpy", marker = "extra == 'test'", specifier = ">=2.4.0" },
+    { name = "openai", specifier = ">=2.8.1" },
     { name = "pillow", specifier = ">=12.0.0" },
     { name = "pillow", marker = "extra == 'test'", specifier = ">=12.0.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.2" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "scikit-learn", specifier = ">=1.8.0" },
     { name = "scikit-learn", marker = "extra == 'test'", specifier = ">=1.8.0" },

@@ -1,6 +1,6 @@
 # ContReAct
 
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![UV](https://img.shields.io/badge/Packaged%20with-UV-purple)](https://github.com/astral-sh/uv)
 [![LangGraph](https://img.shields.io/badge/Built%20with-LangGraph-green)](https://github.com/langchain-ai/langgraph)
@@ -64,11 +64,12 @@ Both modes persist state. Stop anytime; it resumes where it left off.
 
 ## Configuration
 
-Each run folder needs two files:
+Each run folder needs three files:
 
 ```
 my_run/
 ├── config.json          # Model, tools, execution settings
+├── react_prompt.md      # System prompt (copy from prompt_templates/)
 └── instance_prompt.md   # Task instructions
 ```
 

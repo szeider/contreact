@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langgraph.checkpoint.memory import InMemorySaver
 
 from contreact.graph import AgentState, create_graph, create_segmented_graph, strip_images_from_history
 
@@ -46,7 +47,7 @@ class TestCreateGraph:
         """Should accept checkpointer parameter."""
         mock_tool = MagicMock()
         mock_tool.name = "test_tool"
-        mock_checkpointer = MagicMock()
+        mock_checkpointer = InMemorySaver()
 
         graph = create_graph([mock_tool], checkpointer=mock_checkpointer)
         assert graph is not None
@@ -76,7 +77,7 @@ class TestCreateSegmentedGraph:
         """Should accept checkpointer parameter."""
         mock_tool = MagicMock()
         mock_tool.name = "test_tool"
-        mock_checkpointer = MagicMock()
+        mock_checkpointer = InMemorySaver()
 
         graph = create_segmented_graph([mock_tool], checkpointer=mock_checkpointer)
         assert graph is not None

@@ -16,8 +16,10 @@ dependencies = [
     "numpy>=2.4.0",
     "scikit-learn>=1.8.0",
     "rich>=14.2.0",
-    "click>=8.3.1",
     "tavily-python>=0.7.17",
+    "openai>=2.8.1",
+    "httpx>=0.28.1",
+    "requests>=2.32.5",
 ]
 
 [project.scripts]
@@ -40,8 +42,8 @@ local-embeddings = [
     "torch>=2.0.0",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=9.0.2",
 ]
 
